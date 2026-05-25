@@ -175,7 +175,7 @@ try:
     
     st.markdown("---")
     
-    # 4. Venta por Hora (Global y por Tienda)
+   # 4. Venta por Hora (Global y por Tienda)
     st.header("4. Venta por Hora (Global y por Tienda)")
     
     def format_hour(hour):
@@ -205,7 +205,7 @@ try:
     
     venta_por_hora_por_tienda = df_filtrado.groupby(['Tienda', 'Hora'])['Venta'].sum().reset_index()
     venta_por_hora_por_tienda['Hora Formato'] = venta_por_hora_por_tienda['Hora'].map(format_hour)
-    st.write("Venta por Hora (por Tienda):")
+    st.write("Venta por Hora (por Tienda) - Grafico de Lineas:")
     
     fig_hora_tienda = px.line(
         venta_por_hora_por_tienda,
@@ -218,7 +218,35 @@ try:
     fig_hora_tienda.update_yaxes(title_text='Venta Total')
     st.plotly_chart(fig_hora_tienda, use_container_width=True)
     
-    st.markdown("---")
+    # Diagrama de calor (Heatmap) para Venta por Hora por Tienda
+    st.write("Venta por Hora (por Tienda) - Diagrama de Calor:")
+    
+    # Preparar datos para el heatmap
+    venta_por_hora_heatmap = df_filtrado.groupby(['Tienda', 'Hora'])['Venta'].sum().unstack(level=0)
+    
+    # Obtener las horas formateadas para el eje X
+    horas_heatmap = venta_por_hora_heatmap.index.map(format_hour)
+    
+    # Crear el heatmap
+    fig_heatmap = px.imshow(
+        venta_por_hora_heatmap.T,  # Transponer para que las tiendas estén en el eje Y y las horas en el eje X
+        x=horas_heatmap,
+        y=venta_por_hora_heatmap.columns,
+        title='Venta por Hora (por Tienda) - Diagrama de Calor',
+        labels=dict(x='Hora del Dia', y='Tienda', color='Venta Total'),
+        color_continuous_scale='Viridis',
+        aspect='auto'
+    )
+    
+    fig_heatmap.update_xaxes(title_text='Hora del Dia')
+    fig_heatmap.update_yaxes(title_text='Tienda')
+    st.plotly_chart(fig_heatmap, use_container_width=True)
+    
+    # Mostrar la tabla de datos del heatmap
+    st.write("Tabla de Venta por Hora (por Tienda):")
+    venta_por_hora_tabla = venta_por_hora_heatmap.copy()
+    venta_por_hora_tabla.index = horas_heatmap
+    st.dataframe(venta_por_hora_tabla.style.format('${:,.2f}'), use_container_width=True)
     
     # 5. Venta por Producto (Global y por Tienda)
     st.header("5. Venta por Producto (Global y por Tienda)")
