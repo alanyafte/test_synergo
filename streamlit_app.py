@@ -106,16 +106,16 @@ try:
     st.write("Venta Total por Tienda:")
     st.dataframe(venta_total_por_tienda.reset_index().style.format({'Venta': '${:,.2f}'}), hide_index=True)
     
-    fig = px.bar(
+    fig1 = px.bar(
         venta_total_por_tienda.reset_index(),
         x='Tienda',
         y='Venta',
         title='Venta Total por Tienda',
         labels={'Tienda': 'Tienda', 'Venta': 'Venta Total'}
     )
-    fig.update_xaxes(title_text='Tienda')
-    fig.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig, use_container_width=True)
+    fig1.update_xaxes(title_text='Tienda')
+    fig1.update_yaxes(title_text='Venta Total')
+    st.plotly_chart(fig1, use_container_width=True, key="fig_venta_tienda")
     
     st.markdown("---")
     
@@ -129,16 +129,16 @@ try:
     st.write("Numero de Tickets por Tienda:")
     st.dataframe(num_tickets_por_tienda.reset_index(), hide_index=True)
     
-    fig = px.bar(
+    fig2 = px.bar(
         num_tickets_por_tienda.reset_index(),
         x='Tienda',
         y='Ticket',
         title='Numero de Tickets por Tienda',
         labels={'Tienda': 'Tienda', 'Ticket': 'Numero de Tickets'}
     )
-    fig.update_xaxes(title_text='Tienda')
-    fig.update_yaxes(title_text='Numero de Tickets')
-    st.plotly_chart(fig, use_container_width=True)
+    fig2.update_xaxes(title_text='Tienda')
+    fig2.update_yaxes(title_text='Numero de Tickets')
+    st.plotly_chart(fig2, use_container_width=True, key="fig_tickets_tienda")
     
     st.markdown("---")
     
@@ -157,7 +157,7 @@ try:
     )
     fig_global.update_xaxes(title_text='Fecha')
     fig_global.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig_global, use_container_width=True)
+    st.plotly_chart(fig_global, use_container_width=True, key="fig_venta_dia_global")
     
     venta_por_dia_por_tienda = df_filtrado.groupby(['Tienda', 'Fecha Vta'])['Venta'].sum().reset_index()
     st.write("Venta por Dia (por Tienda):")
@@ -171,11 +171,11 @@ try:
     )
     fig_tienda.update_xaxes(title_text='Fecha')
     fig_tienda.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig_tienda, use_container_width=True)
+    st.plotly_chart(fig_tienda, use_container_width=True, key="fig_venta_dia_tienda")
     
     st.markdown("---")
     
-   # 4. Venta por Hora (Global y por Tienda)
+    # 4. Venta por Hora (Global y por Tienda)
     st.header("4. Venta por Hora (Global y por Tienda)")
     
     def format_hour(hour):
@@ -201,7 +201,7 @@ try:
     )
     fig_hora_global.update_xaxes(title_text='Hora del Dia')
     fig_hora_global.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig_hora_global, use_container_width=True)
+    st.plotly_chart(fig_hora_global, use_container_width=True, key="fig_venta_hora_global")
     
     venta_por_hora_por_tienda = df_filtrado.groupby(['Tienda', 'Hora'])['Venta'].sum().reset_index()
     venta_por_hora_por_tienda['Hora Formato'] = venta_por_hora_por_tienda['Hora'].map(format_hour)
@@ -216,20 +216,17 @@ try:
     )
     fig_hora_tienda.update_xaxes(title_text='Hora del Dia')
     fig_hora_tienda.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig_hora_tienda, use_container_width=True)
+    st.plotly_chart(fig_hora_tienda, use_container_width=True, key="fig_venta_hora_tienda_lineas")
     
     # Diagrama de calor (Heatmap) para Venta por Hora por Tienda
     st.write("Venta por Hora (por Tienda) - Diagrama de Calor:")
     
-    # Preparar datos para el heatmap
     venta_por_hora_heatmap = df_filtrado.groupby(['Tienda', 'Hora'])['Venta'].sum().unstack(level=0)
     
-    # Obtener las horas formateadas para el eje X
     horas_heatmap = venta_por_hora_heatmap.index.map(format_hour)
     
-    # Crear el heatmap
     fig_heatmap = px.imshow(
-        venta_por_hora_heatmap.T,  # Transponer para que las tiendas estén en el eje Y y las horas en el eje X
+        venta_por_hora_heatmap.T,
         x=horas_heatmap,
         y=venta_por_hora_heatmap.columns,
         title='Venta por Hora (por Tienda) - Diagrama de Calor',
@@ -240,13 +237,14 @@ try:
     
     fig_heatmap.update_xaxes(title_text='Hora del Dia')
     fig_heatmap.update_yaxes(title_text='Tienda')
-    st.plotly_chart(fig_heatmap, use_container_width=True)
+    st.plotly_chart(fig_heatmap, use_container_width=True, key="fig_venta_hora_heatmap")
     
-    # Mostrar la tabla de datos del heatmap
     st.write("Tabla de Venta por Hora (por Tienda):")
     venta_por_hora_tabla = venta_por_hora_heatmap.copy()
     venta_por_hora_tabla.index = horas_heatmap
     st.dataframe(venta_por_hora_tabla.style.format('${:,.2f}'), use_container_width=True)
+    
+    st.markdown("---")
     
     # 5. Venta por Producto (Global y por Tienda)
     st.header("5. Venta por Producto (Global y por Tienda)")
@@ -266,7 +264,7 @@ try:
     )
     fig_global_top10_products.update_xaxes(title_text='Producto')
     fig_global_top10_products.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig_global_top10_products, use_container_width=True)
+    st.plotly_chart(fig_global_top10_products, use_container_width=True, key="fig_top10_productos_global")
     
     if not top_10_global_products.empty:
         df_top10_global_filtered = df_filtrado[df_filtrado['Producto'].isin(top_10_global_products.index)]
@@ -289,7 +287,7 @@ try:
         )
         
         fig_stacked_bar.update_layout(xaxis={'categoryorder': 'total descending'})
-        st.plotly_chart(fig_stacked_bar, use_container_width=True)
+        st.plotly_chart(fig_stacked_bar, use_container_width=True, key="fig_stacked_bar_top10")
     
     st.markdown("---")
     
@@ -309,13 +307,13 @@ try:
     )
     fig_global_top10.update_xaxes(title_text='Producto')
     fig_global_top10.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig_global_top10, use_container_width=True)
+    st.plotly_chart(fig_global_top10, use_container_width=True, key="fig_top10_global_repeat")
     
     top_10_por_tienda = df_filtrado.groupby(['Tienda', 'Producto'])['Venta'].sum().groupby(level=0, group_keys=False).nlargest(10)
     st.write("Top 10 Productos Mas Vendidos (por Tienda):")
     st.dataframe(top_10_por_tienda.reset_index().style.format({'Venta': '${:,.2f}'}), hide_index=True)
     
-    for tienda in top_10_por_tienda.index.get_level_values('Tienda').unique():
+    for i, tienda in enumerate(top_10_por_tienda.index.get_level_values('Tienda').unique()):
         productos_tienda = top_10_por_tienda.loc[tienda]
         
         if not productos_tienda.empty:
@@ -329,7 +327,7 @@ try:
             )
             fig_tienda_top10.update_xaxes(title_text='Producto')
             fig_tienda_top10.update_yaxes(title_text='Venta Total')
-            st.plotly_chart(fig_tienda_top10, use_container_width=True)
+            st.plotly_chart(fig_tienda_top10, use_container_width=True, key=f"fig_top10_tienda_{i}_{tienda}")
     
     st.markdown("---")
     
