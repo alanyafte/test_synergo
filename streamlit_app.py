@@ -1,51 +1,36 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime
 
-# Configuración de la página
 st.set_page_config(
     page_title="Dashboard de Ventas",
     page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# Título principal
-st.title("📊 Dashboard de Análisis de Ventas")
+st.title("Dashboard de Analisis de Ventas")
 st.markdown("---")
 
-# Cargar datos
 @st.cache_data
 def load_data():
     df = pd.read_csv('BD_EVALUACION.csv', encoding='latin1', low_memory=False)
     
-    # Convertir 'Venta' a numérico
     df['Venta'] = pd.to_numeric(df['Venta'], errors='coerce')
     
-    # Convertir 'Fecha Vta' a datetime
     df['Fecha Vta'] = pd.to_datetime(df['Fecha Vta'], format='%d/%m/%Y', errors='coerce')
     
-    # Extraer la hora
     df['Hora'] = pd.to_datetime(df['Hora Vta'], format='%H:%M:%S', errors='coerce').dt.hour
     
-    # Eliminar filas con valores nulos en Venta
     df = df.dropna(subset=['Venta'])
     
     return df
 
-# Sidebar - Filtros
-st.sidebar.header("🔍 Filtros")
+st.sidebar.header("Filtros")
 
-# Cargar datos
 try:
     df = load_data()
     
-    # Filtros en sidebar
-    st.sidebar.subheader("Filtros de Fecha")
-    
-    # Filtro de rango de fechas
     min_date = df['Fecha Vta'].min().date()
     max_date = df['Fecha Vta'].max().date()
     
@@ -63,160 +48,135 @@ try:
         max_value=max_date
     )
     
-    # Filtro de tienda
     tiendas = ['Todas'] + sorted(df['Tienda'].unique().tolist())
     tienda_seleccionada = st.sidebar.selectbox("Seleccionar Tienda", tiendas)
     
-    # Filtro de producto (búsqueda)
     productos = ['Todos'] + sorted(df['Producto'].unique().tolist())
     producto_seleccionado = st.sidebar.selectbox("Seleccionar Producto", productos)
     
-    # Filtro de hora (rango)
     st.sidebar.subheader("Rango de Horas")
-    hora_min = st.sidebar.slider("Hora mínima", 0, 23, 0)
-    hora_max = st.sidebar.slider("Hora máxima", 0, 23, 23)
+    hora_min = st.sidebar.slider("Hora minima", 0, 23, 0)
+    hora_max = st.sidebar.slider("Hora maxima", 0, 23, 23)
     
-    # Aplicar filtros
     df_filtrado = df.copy()
     
-    # Filtro de fechas
     df_filtrado = df_filtrado[
         (df_filtrado['Fecha Vta'].dt.date >= fecha_inicio) & 
         (df_filtrado['Fecha Vta'].dt.date <= fecha_fin)
     ]
     
-    # Filtro de tienda
     if tienda_seleccionada != 'Todas':
         df_filtrado = df_filtrado[df_filtrado['Tienda'] == tienda_seleccionada]
     
-    # Filtro de producto
     if producto_seleccionado != 'Todos':
         df_filtrado = df_filtrado[df_filtrado['Producto'] == producto_seleccionado]
     
-    # Filtro de hora
     df_filtrado = df_filtrado[
         (df_filtrado['Hora'] >= hora_min) & 
         (df_filtrado['Hora'] <= hora_max)
     ]
     
-    # Métricas principales
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         venta_total = df_filtrado['Venta'].sum()
-        st.metric("💰 Venta Total", f"${venta_total:,.2f}")
+        st.metric("Venta Total", f"${venta_total:,.2f}")
     
     with col2:
         num_tickets = df_filtrado['Ticket'].nunique()
-        st.metric("🎫 Tickets Totales", f"{num_tickets:,}")
+        st.metric("Tickets Totales", f"{num_tickets:,}")
     
     with col3:
         ticket_promedio = venta_total / num_tickets if num_tickets > 0 else 0
-        st.metric("📈 Ticket Promedio", f"${ticket_promedio:.2f}")
+        st.metric("Ticket Promedio", f"${ticket_promedio:.2f}")
     
     with col4:
         num_productos = df_filtrado['Producto'].nunique()
-        st.metric("📦 Productos Únicos", f"{num_productos:,}")
+        st.metric("Productos Unicos", f"{num_productos:,}")
     
     st.markdown("---")
     
-    # 1. Venta Total por Tienda
-    st.header("🏪 1. Venta Total por Tienda")
+    # 1. Venta Total (Global y por Tienda)
+    st.header("1. Venta Total (Global y por Tienda)")
     
-    col1_1, col1_2 = st.columns([2, 1])
+    venta_total_global = df_filtrado['Venta'].sum()
+    st.write(f"Venta Total Global: {venta_total_global:,.2f}")
     
-    with col1_1:
-        venta_por_tienda = df_filtrado.groupby('Tienda')['Venta'].sum().sort_values(ascending=False)
-        fig_tienda = px.bar(
-            venta_por_tienda.reset_index(),
-            x='Tienda',
-            y='Venta',
-            title='Venta Total por Tienda',
-            color='Venta',
-            color_continuous_scale='Viridis',
-            text='Venta'
-        )
-        fig_tienda.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
-        fig_tienda.update_layout(showlegend=False)
-        st.plotly_chart(fig_tienda, use_container_width=True)
+    venta_total_por_tienda = df_filtrado.groupby('Tienda')['Venta'].sum()
+    st.write("Venta Total por Tienda:")
+    st.dataframe(venta_total_por_tienda.reset_index().style.format({'Venta': '${:,.2f}'}), hide_index=True)
     
-    with col1_2:
-        st.dataframe(
-            venta_por_tienda.reset_index().style.format({'Venta': '${:,.2f}'}),
-            use_container_width=True,
-            hide_index=True
-        )
+    fig = px.bar(
+        venta_total_por_tienda.reset_index(),
+        x='Tienda',
+        y='Venta',
+        title='Venta Total por Tienda',
+        labels={'Tienda': 'Tienda', 'Venta': 'Venta Total'}
+    )
+    fig.update_xaxes(title_text='Tienda')
+    fig.update_yaxes(title_text='Venta Total')
+    st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
     
-    # 2. Número de Tickets por Tienda
-    st.header("🎫 2. Número de Tickets por Tienda")
+    # 2. Numero de Tickets (Global y por Tienda)
+    st.header("2. Numero de Tickets (Global y por Tienda)")
     
-    col2_1, col2_2 = st.columns([2, 1])
+    num_tickets_global = df_filtrado['Ticket'].nunique()
+    st.write(f"Numero Total de Tickets: {num_tickets_global}")
     
-    with col2_1:
-        tickets_por_tienda = df_filtrado.groupby('Tienda')['Ticket'].nunique().sort_values(ascending=False)
-        fig_tickets = px.bar(
-            tickets_por_tienda.reset_index(),
-            x='Tienda',
-            y='Ticket',
-            title='Número de Tickets por Tienda',
-            color='Ticket',
-            color_continuous_scale='Plasma',
-            text='Ticket'
-        )
-        fig_tickets.update_traces(textposition='outside')
-        st.plotly_chart(fig_tickets, use_container_width=True)
+    num_tickets_por_tienda = df_filtrado.groupby('Tienda')['Ticket'].nunique()
+    st.write("Numero de Tickets por Tienda:")
+    st.dataframe(num_tickets_por_tienda.reset_index(), hide_index=True)
     
-    with col2_2:
-        st.dataframe(
-            tickets_por_tienda.reset_index().style.format({'Ticket': '{:,.0f}'}),
-            use_container_width=True,
-            hide_index=True
-        )
+    fig = px.bar(
+        num_tickets_por_tienda.reset_index(),
+        x='Tienda',
+        y='Ticket',
+        title='Numero de Tickets por Tienda',
+        labels={'Tienda': 'Tienda', 'Ticket': 'Numero de Tickets'}
+    )
+    fig.update_xaxes(title_text='Tienda')
+    fig.update_yaxes(title_text='Numero de Tickets')
+    st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
     
-    # 3. Venta por Día
-    st.header("📅 3. Venta por Día")
+    # 3. Venta por Dia (Global y por Tienda)
+    st.header("3. Venta por Dia (Global y por Tienda)")
     
-    tab1, tab2 = st.tabs(["Global", "Por Tienda"])
+    venta_por_dia_global = df_filtrado.groupby('Fecha Vta')['Venta'].sum().sort_index()
+    st.write("Venta por Dia (Global):")
+    st.dataframe(venta_por_dia_global.reset_index().style.format({'Venta': '${:,.2f}'}), hide_index=True)
     
-    with tab1:
-        venta_por_dia = df_filtrado.groupby('Fecha Vta')['Venta'].sum().sort_index()
-        fig_dia_global = px.line(
-            venta_por_dia.reset_index(),
-            x='Fecha Vta',
-            y='Venta',
-            title='Venta por Día (Global)',
-            markers=True
-        )
-        fig_dia_global.update_traces(line=dict(width=2), marker=dict(size=6))
-        st.plotly_chart(fig_dia_global, use_container_width=True)
-        
-        # Mostrar tabla
-        st.dataframe(
-            venta_por_dia.reset_index().style.format({'Venta': '${:,.2f}'}),
-            use_container_width=True,
-            hide_index=True
-        )
+    fig_global = px.line(
+        venta_por_dia_global.reset_index(),
+        x='Fecha Vta',
+        y='Venta',
+        title='Venta por Dia (Global)'
+    )
+    fig_global.update_xaxes(title_text='Fecha')
+    fig_global.update_yaxes(title_text='Venta Total')
+    st.plotly_chart(fig_global, use_container_width=True)
     
-    with tab2:
-        venta_por_dia_tienda = df_filtrado.groupby(['Tienda', 'Fecha Vta'])['Venta'].sum().reset_index()
-        fig_dia_tienda = px.line(
-            venta_por_dia_tienda,
-            x='Fecha Vta',
-            y='Venta',
-            color='Tienda',
-            title='Venta por Día (por Tienda)',
-            markers=True
-        )
-        st.plotly_chart(fig_dia_tienda, use_container_width=True)
+    venta_por_dia_por_tienda = df_filtrado.groupby(['Tienda', 'Fecha Vta'])['Venta'].sum().reset_index()
+    st.write("Venta por Dia (por Tienda):")
+    
+    fig_tienda = px.line(
+        venta_por_dia_por_tienda,
+        x='Fecha Vta',
+        y='Venta',
+        color='Tienda',
+        title='Venta por Dia (por Tienda)'
+    )
+    fig_tienda.update_xaxes(title_text='Fecha')
+    fig_tienda.update_yaxes(title_text='Venta Total')
+    st.plotly_chart(fig_tienda, use_container_width=True)
     
     st.markdown("---")
     
-    # 4. Venta por Hora
-    st.header("⏰ 4. Venta por Hora")
+    # 4. Venta por Hora (Global y por Tienda)
+    st.header("4. Venta por Hora (Global y por Tienda)")
     
     def format_hour(hour):
         if hour == 0:
@@ -228,178 +188,169 @@ try:
         else:
             return f'{hour - 12} PM'
     
-    tab3, tab4 = st.tabs(["Global", "Por Tienda"])
+    venta_por_hora_global = df_filtrado.groupby('Hora')['Venta'].sum().sort_index()
+    st.write("Venta por Hora (Global):")
+    st.dataframe(venta_por_hora_global.reset_index().style.format({'Venta': '${:,.2f}'}), hide_index=True)
     
-    with tab3:
-        venta_por_hora = df_filtrado.groupby('Hora')['Venta'].sum().sort_index()
-        horas_formateadas = [format_hour(h) for h in venta_por_hora.index]
-        
-        fig_hora = px.bar(
-            x=horas_formateadas,
-            y=venta_por_hora.values,
-            title='Venta por Hora (Global)',
-            labels={'x': 'Hora del Día', 'y': 'Venta Total'},
-            color=venta_por_hora.values,
-            color_continuous_scale='Viridis'
-        )
-        st.plotly_chart(fig_hora, use_container_width=True)
-        
-        # Tabla
-        hora_df = pd.DataFrame({
-            'Hora': horas_formateadas,
-            'Venta': venta_por_hora.values
-        })
-        st.dataframe(
-            hora_df.style.format({'Venta': '${:,.2f}'}),
-            use_container_width=True,
-            hide_index=True
-        )
+    formatted_hours_global = venta_por_hora_global.index.map(format_hour)
+    fig_hora_global = px.bar(
+        x=formatted_hours_global,
+        y=venta_por_hora_global.values,
+        title='Venta por Hora (Global)',
+        labels={'x': 'Hora del Dia', 'y': 'Venta Total'}
+    )
+    fig_hora_global.update_xaxes(title_text='Hora del Dia')
+    fig_hora_global.update_yaxes(title_text='Venta Total')
+    st.plotly_chart(fig_hora_global, use_container_width=True)
     
-    with tab4:
-        venta_por_hora_tienda = df_filtrado.groupby(['Tienda', 'Hora'])['Venta'].sum().reset_index()
-        venta_por_hora_tienda['Hora_Formato'] = venta_por_hora_tienda['Hora'].map(format_hour)
+    venta_por_hora_por_tienda = df_filtrado.groupby(['Tienda', 'Hora'])['Venta'].sum().reset_index()
+    venta_por_hora_por_tienda['Hora Formato'] = venta_por_hora_por_tienda['Hora'].map(format_hour)
+    st.write("Venta por Hora (por Tienda):")
+    
+    fig_hora_tienda = px.line(
+        venta_por_hora_por_tienda,
+        x='Hora Formato',
+        y='Venta',
+        color='Tienda',
+        title='Venta por Hora (por Tienda)'
+    )
+    fig_hora_tienda.update_xaxes(title_text='Hora del Dia')
+    fig_hora_tienda.update_yaxes(title_text='Venta Total')
+    st.plotly_chart(fig_hora_tienda, use_container_width=True)
+    
+    st.markdown("---")
+    
+    # 5. Venta por Producto (Global y por Tienda)
+    st.header("5. Venta por Producto (Global y por Tienda)")
+    
+    venta_por_producto_global = df_filtrado.groupby('Producto')['Venta'].sum().sort_values(ascending=False)
+    st.write("Venta por Producto (Global):")
+    st.dataframe(venta_por_producto_global.reset_index().head(20).style.format({'Venta': '${:,.2f}'}), hide_index=True)
+    
+    top_10_global_products = venta_por_producto_global.nlargest(10)
+    
+    fig_global_top10_products = px.bar(
+        top_10_global_products.reset_index(),
+        x='Producto',
+        y='Venta',
+        title='Top 10 Productos Mas Vendidos (Global)',
+        labels={'Producto': 'Producto', 'Venta': 'Venta Total'}
+    )
+    fig_global_top10_products.update_xaxes(title_text='Producto')
+    fig_global_top10_products.update_yaxes(title_text='Venta Total')
+    st.plotly_chart(fig_global_top10_products, use_container_width=True)
+    
+    if not top_10_global_products.empty:
+        df_top10_global_filtered = df_filtrado[df_filtrado['Producto'].isin(top_10_global_products.index)]
         
-        fig_hora_tienda = px.line(
-            venta_por_hora_tienda,
-            x='Hora_Formato',
+        venta_top10_por_producto_y_tienda = df_top10_global_filtered.groupby(['Producto', 'Tienda'])['Venta'].sum().reset_index()
+        
+        total_sales_per_product = df_top10_global_filtered.groupby('Producto')['Venta'].sum().rename('Total Venta Producto').reset_index()
+        
+        venta_top10_por_producto_y_tienda = pd.merge(venta_top10_por_producto_y_tienda, total_sales_per_product, on='Producto')
+        
+        venta_top10_por_producto_y_tienda['Porcentaje Venta Tienda'] = (venta_top10_por_producto_y_tienda['Venta'] / venta_top10_por_producto_y_tienda['Total Venta Producto']) * 100
+        
+        fig_stacked_bar = px.bar(
+            venta_top10_por_producto_y_tienda,
+            x='Producto',
             y='Venta',
             color='Tienda',
-            title='Venta por Hora (por Tienda)',
-            markers=True
+            title='Venta de los Top 10 Productos Globales por Tienda',
+            labels={'Producto': 'Producto', 'Venta': 'Venta Total', 'Tienda': 'Tienda'}
         )
-        st.plotly_chart(fig_hora_tienda, use_container_width=True)
+        
+        fig_stacked_bar.update_layout(xaxis={'categoryorder': 'total descending'})
+        st.plotly_chart(fig_stacked_bar, use_container_width=True)
     
     st.markdown("---")
     
-    # 5. Top 10 Productos Más Vendidos
-    st.header("🏆 5. Top 10 Productos Más Vendidos")
+    # 6. Top 10 Productos Mas Vendidos (Global y por Tienda)
+    st.header("6. Top 10 Productos Mas Vendidos (Global y por Tienda)")
     
-    tab5, tab6 = st.tabs(["Global", "Por Tienda"])
+    top_10_global = df_filtrado.groupby('Producto')['Venta'].sum().nlargest(10)
+    st.write("Top 10 Productos Mas Vendidos (Global):")
+    st.dataframe(top_10_global.reset_index().style.format({'Venta': '${:,.2f}'}), hide_index=True)
     
-    with tab5:
-        top_10_global = df_filtrado.groupby('Producto')['Venta'].sum().nlargest(10)
-        
-        fig_top10 = px.bar(
-            top_10_global.reset_index(),
-            x='Venta',
-            y='Producto',
-            title='Top 10 Productos Más Vendidos (Global)',
-            orientation='h',
-            color='Venta',
-            color_continuous_scale='Viridis',
-            text='Venta'
-        )
-        fig_top10.update_traces(texttemplate='$%{text:,.2f}', textposition='outside')
-        fig_top10.update_layout(yaxis={'categoryorder': 'total ascending'})
-        st.plotly_chart(fig_top10, use_container_width=True)
-        
-        st.dataframe(
-            top_10_global.reset_index().style.format({'Venta': '${:,.2f}'}),
-            use_container_width=True,
-            hide_index=True
-        )
+    fig_global_top10 = px.bar(
+        top_10_global.reset_index(),
+        x='Producto',
+        y='Venta',
+        title='Top 10 Productos Mas Vendidos (Global)',
+        labels={'Producto': 'Producto', 'Venta': 'Venta Total'}
+    )
+    fig_global_top10.update_xaxes(title_text='Producto')
+    fig_global_top10.update_yaxes(title_text='Venta Total')
+    st.plotly_chart(fig_global_top10, use_container_width=True)
     
-    with tab6:
-        # Selector de tienda para top 10
-        tienda_top10 = st.selectbox(
-            "Seleccionar Tienda para Top 10",
-            ['Todas'] + sorted(df_filtrado['Tienda'].unique().tolist()),
-            key='top10_tienda'
-        )
+    top_10_por_tienda = df_filtrado.groupby(['Tienda', 'Producto'])['Venta'].sum().groupby(level=0, group_keys=False).nlargest(10)
+    st.write("Top 10 Productos Mas Vendidos (por Tienda):")
+    st.dataframe(top_10_por_tienda.reset_index().style.format({'Venta': '${:,.2f}'}), hide_index=True)
+    
+    for tienda in top_10_por_tienda.index.get_level_values('Tienda').unique():
+        productos_tienda = top_10_por_tienda.loc[tienda]
         
-        if tienda_top10 == 'Todas':
-            top_10_tienda = df_filtrado.groupby(['Tienda', 'Producto'])['Venta'].sum().groupby(level=0, group_keys=False).nlargest(10)
-            
-            for tienda in top_10_tienda.index.get_level_values('Tienda').unique():
-                st.subheader(f"Top 10 - {tienda}")
-                productos_tienda = top_10_tienda.loc[tienda]
-                
-                if not productos_tienda.empty:
-                    fig = px.bar(
-                        productos_tienda.reset_index(),
-                        x='Venta',
-                        y='Producto',
-                        title=f'Top 10 Productos - {tienda}',
-                        orientation='h',
-                        color='Venta',
-                        color_continuous_scale='Viridis'
-                    )
-                    fig.update_layout(height=400)
-                    st.plotly_chart(fig, use_container_width=True)
-        else:
-            top_10_tienda = df_filtrado[df_filtrado['Tienda'] == tienda_top10].groupby('Producto')['Venta'].sum().nlargest(10)
-            
-            fig = px.bar(
-                top_10_tienda.reset_index(),
-                x='Venta',
-                y='Producto',
-                title=f'Top 10 Productos - {tienda_top10}',
-                orientation='h',
-                color='Venta',
-                color_continuous_scale='Viridis',
-                text='Venta'
+        if not productos_tienda.empty:
+            productos_tienda_df = productos_tienda.reset_index()
+            fig_tienda_top10 = px.bar(
+                productos_tienda_df,
+                x='Producto',
+                y='Venta',
+                title=f'Top 10 Productos Mas Vendidos en {tienda}',
+                labels={'Producto': 'Producto', 'Venta': 'Venta Total'}
             )
-            fig.update_traces(texttemplate='$%{text:,.2f}', textposition='outside')
-            st.plotly_chart(fig, use_container_width=True)
+            fig_tienda_top10.update_xaxes(title_text='Producto')
+            fig_tienda_top10.update_yaxes(title_text='Venta Total')
+            st.plotly_chart(fig_tienda_top10, use_container_width=True)
     
     st.markdown("---")
     
-    # 6. Tabla de Datos Filtrada
-    st.header("📋 6. Datos Detallados")
+    # 7. Datos Detallados
+    st.header("7. Datos Detallados")
     
-    # Mostrar datos filtrados
     st.subheader("Vista de Datos Aplicando Filtros")
     
-    # Selector de columnas a mostrar
-    columnas_disponibles = df_filtrado.columns.tolist()
     columnas_mostrar = st.multiselect(
         "Seleccionar columnas a mostrar",
-        columnas_disponibles,
+        df_filtrado.columns.tolist(),
         default=['Tienda', 'Ticket', 'Producto', 'Venta', 'Fecha Vta', 'Hora', 'Cantidad']
     )
     
     if columnas_mostrar:
-        st.dataframe(
-            df_filtrado[columnas_mostrar].head(1000),
-            use_container_width=True,
-            height=400
-        )
+        st.dataframe(df_filtrado[columnas_mostrar].head(1000), use_container_width=True, height=400)
         
-        # Descargar datos filtrados
         @st.cache_data
         def convert_df_to_csv(df_to_convert, columns):
             return df_to_convert[columns].to_csv(index=False).encode('utf-8')
         
         csv = convert_df_to_csv(df_filtrado, columnas_mostrar)
         st.download_button(
-            label="📥 Descargar datos filtrados (CSV)",
+            label="Descargar datos filtrados (CSV)",
             data=csv,
             file_name=f"ventas_filtradas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv"
         )
     
-    # Información del dashboard
     st.sidebar.markdown("---")
     st.sidebar.info(
         f"""
-        ### 📊 Información del Dashboard
+        Informacion del Dashboard
         
-        - **Total de registros:** {len(df_filtrado):,}
-        - **Rango de fechas:** {fecha_inicio} a {fecha_fin}
-        - **Tiendas incluidas:** {tienda_seleccionada if tienda_seleccionada != 'Todas' else 'Todas'}
-        - **Productos incluidos:** {producto_seleccionado if producto_seleccionado != 'Todos' else 'Todos'}
+        Total de registros: {len(df_filtrado):,}
+        Rango de fechas: {fecha_inicio} a {fecha_fin}
+        Tiendas incluidas: {tienda_seleccionada if tienda_seleccionada != 'Todas' else 'Todas'}
+        Productos incluidos: {producto_seleccionado if producto_seleccionado != 'Todos' else 'Todos'}
         """
     )
     
-    # Footer
     st.markdown("---")
     st.markdown(
-        "<div style='text-align: center; color: gray;'>Dashboard creado con Streamlit | Análisis de Ventas</div>",
+        "<div style='text-align: center; color: gray;'>Dashboard creado con Streamlit | Analisis de Ventas</div>",
         unsafe_allow_html=True
     )
 
 except FileNotFoundError:
-    st.error("❌ Error: No se encontró el archivo 'BD_EVALUACION.csv'")
-    st.info("Por favor, asegúrate de que el archivo CSV esté en el mismo directorio que este script")
+    st.error("Error: No se encontro el archivo 'BD_EVALUACION.csv'")
+    st.info("Por favor, asegurate de que el archivo CSV este en el mismo directorio que este script")
 except Exception as e:
-    st.error(f"❌ Error al cargar los datos: {str(e)}")
+    st.error(f"Error al cargar los datos: {str(e)}")
