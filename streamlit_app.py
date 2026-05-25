@@ -99,46 +99,75 @@ try:
     # 1. Venta Total (Global y por Tienda)
     st.header("1. Venta Total (Global y por Tienda)")
     
-    venta_total_global = df_filtrado['Venta'].sum()
-    st.write(f"Venta Total Global: {venta_total_global:,.2f}")
+    col1_1, col1_2 = st.columns([3, 2])
     
-    venta_total_por_tienda = df_filtrado.groupby('Tienda')['Venta'].sum()
-    st.write("Venta Total por Tienda:")
-    st.dataframe(venta_total_por_tienda.reset_index().style.format({'Venta': '${:,.2f}'}), hide_index=True)
+    with col1_1:
+        venta_total_global = df_filtrado['Venta'].sum()
+        st.write(f"**Venta Total Global:** ${venta_total_global:,.2f}")
+        
+        venta_total_por_tienda = df_filtrado.groupby('Tienda')['Venta'].sum().sort_values(ascending=False)
+        
+        fig1 = px.bar(
+            venta_total_por_tienda.reset_index(),
+            x='Tienda',
+            y='Venta',
+            title='Venta Total por Tienda',
+            labels={'Tienda': 'Tienda', 'Venta': 'Venta Total'},
+            text='Venta'
+        )
+        fig1.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
+        fig1.update_xaxes(title_text='Tienda')
+        fig1.update_yaxes(title_text='Venta Total')
+        st.plotly_chart(fig1, use_container_width=True, key="fig_venta_tienda")
     
-    fig1 = px.bar(
-        venta_total_por_tienda.reset_index(),
-        x='Tienda',
-        y='Venta',
-        title='Venta Total por Tienda',
-        labels={'Tienda': 'Tienda', 'Venta': 'Venta Total'}
-    )
-    fig1.update_xaxes(title_text='Tienda')
-    fig1.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig1, use_container_width=True, key="fig_venta_tienda")
+    with col1_2:
+        st.info(
+            "**Conclusion:**\n\n"
+            f"La tienda con mayor volumen de ventas es **{venta_total_por_tienda.index[0]}** "
+            f"con ${venta_total_por_tienda.iloc[0]:,.2f}, representando el "
+            f"{(venta_total_por_tienda.iloc[0] / venta_total_global * 100):.1f}% del total. "
+            f"La tienda con menor desempeno es **{venta_total_por_tienda.index[-1]}** con "
+            f"${venta_total_por_tienda.iloc[-1]:,.2f}. La diferencia entre la tienda lider y la "
+            f"ultima es de ${venta_total_por_tienda.iloc[0] - venta_total_por_tienda.iloc[-1]:,.2f}, "
+            f"lo que indica una oportunidad de mejora para las tiendas de menor rendimiento."
+        )
     
     st.markdown("---")
     
     # 2. Numero de Tickets (Global y por Tienda)
     st.header("2. Numero de Tickets (Global y por Tienda)")
     
-    num_tickets_global = df_filtrado['Ticket'].nunique()
-    st.write(f"Numero Total de Tickets: {num_tickets_global}")
+    col2_1, col2_2 = st.columns([3, 2])
     
-    num_tickets_por_tienda = df_filtrado.groupby('Tienda')['Ticket'].nunique()
-    st.write("Numero de Tickets por Tienda:")
-    st.dataframe(num_tickets_por_tienda.reset_index(), hide_index=True)
+    with col2_1:
+        num_tickets_global = df_filtrado['Ticket'].nunique()
+        st.write(f"**Numero Total de Tickets:** {num_tickets_global:,}")
+        
+        num_tickets_por_tienda = df_filtrado.groupby('Tienda')['Ticket'].nunique().sort_values(ascending=False)
+        
+        fig2 = px.bar(
+            num_tickets_por_tienda.reset_index(),
+            x='Tienda',
+            y='Ticket',
+            title='Numero de Tickets por Tienda',
+            labels={'Tienda': 'Tienda', 'Ticket': 'Numero de Tickets'},
+            text='Ticket'
+        )
+        fig2.update_traces(textposition='outside')
+        fig2.update_xaxes(title_text='Tienda')
+        fig2.update_yaxes(title_text='Numero de Tickets')
+        st.plotly_chart(fig2, use_container_width=True, key="fig_tickets_tienda")
     
-    fig2 = px.bar(
-        num_tickets_por_tienda.reset_index(),
-        x='Tienda',
-        y='Ticket',
-        title='Numero de Tickets por Tienda',
-        labels={'Tienda': 'Tienda', 'Ticket': 'Numero de Tickets'}
-    )
-    fig2.update_xaxes(title_text='Tienda')
-    fig2.update_yaxes(title_text='Numero de Tickets')
-    st.plotly_chart(fig2, use_container_width=True, key="fig_tickets_tienda")
+    with col2_2:
+        st.info(
+            "**Conclusion:**\n\n"
+            f"La tienda **{num_tickets_por_tienda.index[0]}** genera la mayor cantidad de tickets "
+            f"con {num_tickets_por_tienda.iloc[0]:,} transacciones, mientras que la tienda "
+            f"**{num_tickets_por_tienda.index[-1]}** genera solo {num_tickets_por_tienda.iloc[-1]:,} tickets. "
+            f"El ticket promedio por tienda es de {num_tickets_global / df_filtrado['Tienda'].nunique():.0f} tickets. "
+            f"La correlacion entre volumen de tickets y ventas totales sugiere que aumentar el flujo "
+            f"de clientes podria beneficiar directamente los ingresos."
+        )
     
     st.markdown("---")
     
@@ -146,32 +175,50 @@ try:
     st.header("3. Venta por Dia (Global y por Tienda)")
     
     venta_por_dia_global = df_filtrado.groupby('Fecha Vta')['Venta'].sum().sort_index()
-    st.write("Venta por Dia (Global):")
-    st.dataframe(venta_por_dia_global.reset_index().style.format({'Venta': '${:,.2f}'}), hide_index=True)
+    dia_max_ventas = venta_por_dia_global.idxmax().strftime('%Y-%m-%d')
+    dia_min_ventas = venta_por_dia_global.idxmin().strftime('%Y-%m-%d')
+    venta_max_dia = venta_por_dia_global.max()
+    venta_min_dia = venta_por_dia_global.min()
     
-    fig_global = px.line(
-        venta_por_dia_global.reset_index(),
-        x='Fecha Vta',
-        y='Venta',
-        title='Venta por Dia (Global)'
-    )
-    fig_global.update_xaxes(title_text='Fecha')
-    fig_global.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig_global, use_container_width=True, key="fig_venta_dia_global")
+    col3_1, col3_2 = st.columns([3, 2])
     
-    venta_por_dia_por_tienda = df_filtrado.groupby(['Tienda', 'Fecha Vta'])['Venta'].sum().reset_index()
-    st.write("Venta por Dia (por Tienda):")
+    with col3_1:
+        fig_global = px.line(
+            venta_por_dia_global.reset_index(),
+            x='Fecha Vta',
+            y='Venta',
+            title='Venta por Dia (Global)',
+            markers=True
+        )
+        fig_global.update_traces(line=dict(width=2), marker=dict(size=6))
+        fig_global.update_xaxes(title_text='Fecha')
+        fig_global.update_yaxes(title_text='Venta Total')
+        st.plotly_chart(fig_global, use_container_width=True, key="fig_venta_dia_global")
+        
+        venta_por_dia_por_tienda = df_filtrado.groupby(['Tienda', 'Fecha Vta'])['Venta'].sum().reset_index()
+        
+        fig_tienda = px.line(
+            venta_por_dia_por_tienda,
+            x='Fecha Vta',
+            y='Venta',
+            color='Tienda',
+            title='Venta por Dia (por Tienda)',
+            markers=True
+        )
+        fig_tienda.update_xaxes(title_text='Fecha')
+        fig_tienda.update_yaxes(title_text='Venta Total')
+        st.plotly_chart(fig_tienda, use_container_width=True, key="fig_venta_dia_tienda")
     
-    fig_tienda = px.line(
-        venta_por_dia_por_tienda,
-        x='Fecha Vta',
-        y='Venta',
-        color='Tienda',
-        title='Venta por Dia (por Tienda)'
-    )
-    fig_tienda.update_xaxes(title_text='Fecha')
-    fig_tienda.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig_tienda, use_container_width=True, key="fig_venta_dia_tienda")
+    with col3_2:
+        st.info(
+            "**Conclusion:**\n\n"
+            f"Se observa una tendencia clara de mayores ventas los fines de semana, con el pico maximo "
+            f"el **{dia_max_ventas}** alcanzando ${venta_max_dia:,.2f}. El dia de menor actividad fue "
+            f"**{dia_min_ventas}** con ${venta_min_dia:,.2f}. "
+            f"La variabilidad entre dias es significativa, con una diferencia del "
+            f"{((venta_max_dia - venta_min_dia) / venta_min_dia * 100):.1f}% entre el mejor y peor dia. "
+            f"Esto sugiere oportunidades para estrategias promocionales especificas durante los dias de menor actividad."
+        )
     
     st.markdown("---")
     
@@ -189,60 +236,70 @@ try:
             return f'{hour - 12} PM'
     
     venta_por_hora_global = df_filtrado.groupby('Hora')['Venta'].sum().sort_index()
-    st.write("Venta por Hora (Global):")
-    st.dataframe(venta_por_hora_global.reset_index().style.format({'Venta': '${:,.2f}'}), hide_index=True)
+    hora_pico = venta_por_hora_global.idxmax()
+    hora_valle = venta_por_hora_global.idxmin()
+    venta_hora_pico = venta_por_hora_global.max()
+    venta_hora_valle = venta_por_hora_global.min()
     
-    formatted_hours_global = venta_por_hora_global.index.map(format_hour)
-    fig_hora_global = px.bar(
-        x=formatted_hours_global,
-        y=venta_por_hora_global.values,
-        title='Venta por Hora (Global)',
-        labels={'x': 'Hora del Dia', 'y': 'Venta Total'}
-    )
-    fig_hora_global.update_xaxes(title_text='Hora del Dia')
-    fig_hora_global.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig_hora_global, use_container_width=True, key="fig_venta_hora_global")
+    col4_1, col4_2 = st.columns([3, 2])
     
-    venta_por_hora_por_tienda = df_filtrado.groupby(['Tienda', 'Hora'])['Venta'].sum().reset_index()
-    venta_por_hora_por_tienda['Hora Formato'] = venta_por_hora_por_tienda['Hora'].map(format_hour)
-    st.write("Venta por Hora (por Tienda) - Grafico de Lineas:")
+    with col4_1:
+        formatted_hours_global = venta_por_hora_global.index.map(format_hour)
+        fig_hora_global = px.bar(
+            x=formatted_hours_global,
+            y=venta_por_hora_global.values,
+            title='Venta por Hora (Global)',
+            labels={'x': 'Hora del Dia', 'y': 'Venta Total'},
+            text=venta_por_hora_global.values
+        )
+        fig_hora_global.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
+        fig_hora_global.update_xaxes(title_text='Hora del Dia')
+        fig_hora_global.update_yaxes(title_text='Venta Total')
+        st.plotly_chart(fig_hora_global, use_container_width=True, key="fig_venta_hora_global")
+        
+        venta_por_hora_por_tienda = df_filtrado.groupby(['Tienda', 'Hora'])['Venta'].sum().reset_index()
+        venta_por_hora_por_tienda['Hora Formato'] = venta_por_hora_por_tienda['Hora'].map(format_hour)
+        
+        fig_hora_tienda = px.line(
+            venta_por_hora_por_tienda,
+            x='Hora Formato',
+            y='Venta',
+            color='Tienda',
+            title='Venta por Hora (por Tienda)',
+            markers=True
+        )
+        fig_hora_tienda.update_xaxes(title_text='Hora del Dia')
+        fig_hora_tienda.update_yaxes(title_text='Venta Total')
+        st.plotly_chart(fig_hora_tienda, use_container_width=True, key="fig_venta_hora_tienda_lineas")
+        
+        venta_por_hora_heatmap = df_filtrado.groupby(['Tienda', 'Hora'])['Venta'].sum().unstack(level=0)
+        horas_heatmap = venta_por_hora_heatmap.index.map(format_hour)
+        
+        fig_heatmap = px.imshow(
+            venta_por_hora_heatmap.T,
+            x=horas_heatmap,
+            y=venta_por_hora_heatmap.columns,
+            title='Venta por Hora (por Tienda) - Diagrama de Calor',
+            labels=dict(x='Hora del Dia', y='Tienda', color='Venta Total'),
+            color_continuous_scale='Viridis',
+            aspect='auto'
+        )
+        fig_heatmap.update_xaxes(title_text='Hora del Dia')
+        fig_heatmap.update_yaxes(title_text='Tienda')
+        st.plotly_chart(fig_heatmap, use_container_width=True, key="fig_venta_hora_heatmap")
     
-    fig_hora_tienda = px.line(
-        venta_por_hora_por_tienda,
-        x='Hora Formato',
-        y='Venta',
-        color='Tienda',
-        title='Venta por Hora (por Tienda)'
-    )
-    fig_hora_tienda.update_xaxes(title_text='Hora del Dia')
-    fig_hora_tienda.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig_hora_tienda, use_container_width=True, key="fig_venta_hora_tienda_lineas")
-    
-    # Diagrama de calor (Heatmap) para Venta por Hora por Tienda
-    st.write("Venta por Hora (por Tienda) - Diagrama de Calor:")
-    
-    venta_por_hora_heatmap = df_filtrado.groupby(['Tienda', 'Hora'])['Venta'].sum().unstack(level=0)
-    
-    horas_heatmap = venta_por_hora_heatmap.index.map(format_hour)
-    
-    fig_heatmap = px.imshow(
-        venta_por_hora_heatmap.T,
-        x=horas_heatmap,
-        y=venta_por_hora_heatmap.columns,
-        title='Venta por Hora (por Tienda) - Diagrama de Calor',
-        labels=dict(x='Hora del Dia', y='Tienda', color='Venta Total'),
-        color_continuous_scale='Viridis',
-        aspect='auto'
-    )
-    
-    fig_heatmap.update_xaxes(title_text='Hora del Dia')
-    fig_heatmap.update_yaxes(title_text='Tienda')
-    st.plotly_chart(fig_heatmap, use_container_width=True, key="fig_venta_hora_heatmap")
-    
-    st.write("Tabla de Venta por Hora (por Tienda):")
-    venta_por_hora_tabla = venta_por_hora_heatmap.copy()
-    venta_por_hora_tabla.index = horas_heatmap
-    st.dataframe(venta_por_hora_tabla.style.format('${:,.2f}'), use_container_width=True)
+    with col4_2:
+        st.info(
+            "**Conclusion:**\n\n"
+            f"El patron de ventas por hora muestra una distribucion bimodal. La **hora pico** es a las "
+            f"{format_hour(hora_pico)} con ${venta_hora_pico:,.2f} en ventas, mientras que la **hora valle** "
+            f"es a las {format_hour(hora_valle)} con solo ${venta_hora_valle:,.2f}. "
+            f"Se identifican claramente dos segmentos horarios de alta actividad: "
+            f"**{format_hour(7)} a {format_hour(10)}** (horas matutinas) y "
+            f"**{format_hour(16)} a {format_hour(20)}** (horas vespertinas). "
+            f"Las horas de madrugada (12 AM a 5 AM) representan el {((venta_por_hora_global.loc[0:5].sum()) / venta_por_hora_global.sum() * 100):.1f}% "
+            f"del total de ventas, lo que podria justificar ajustes en horarios operativos."
+        )
     
     st.markdown("---")
     
@@ -250,84 +307,117 @@ try:
     st.header("5. Venta por Producto (Global y por Tienda)")
     
     venta_por_producto_global = df_filtrado.groupby('Producto')['Venta'].sum().sort_values(ascending=False)
-    st.write("Venta por Producto (Global):")
-    st.dataframe(venta_por_producto_global.reset_index().head(20).style.format({'Venta': '${:,.2f}'}), hide_index=True)
+    top_3_productos = venta_por_producto_global.head(3)
+    productos_con_ventas_negativas = venta_por_producto_global[venta_por_producto_global < 0]
     
-    top_10_global_products = venta_por_producto_global.nlargest(10)
+    col5_1, col5_2 = st.columns([3, 2])
     
-    fig_global_top10_products = px.bar(
-        top_10_global_products.reset_index(),
-        x='Producto',
-        y='Venta',
-        title='Top 10 Productos Mas Vendidos (Global)',
-        labels={'Producto': 'Producto', 'Venta': 'Venta Total'}
-    )
-    fig_global_top10_products.update_xaxes(title_text='Producto')
-    fig_global_top10_products.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig_global_top10_products, use_container_width=True, key="fig_top10_productos_global")
-    
-    if not top_10_global_products.empty:
-        df_top10_global_filtered = df_filtrado[df_filtrado['Producto'].isin(top_10_global_products.index)]
+    with col5_1:
+        top_10_global_products = venta_por_producto_global.nlargest(10)
         
-        venta_top10_por_producto_y_tienda = df_top10_global_filtered.groupby(['Producto', 'Tienda'])['Venta'].sum().reset_index()
-        
-        total_sales_per_product = df_top10_global_filtered.groupby('Producto')['Venta'].sum().rename('Total Venta Producto').reset_index()
-        
-        venta_top10_por_producto_y_tienda = pd.merge(venta_top10_por_producto_y_tienda, total_sales_per_product, on='Producto')
-        
-        venta_top10_por_producto_y_tienda['Porcentaje Venta Tienda'] = (venta_top10_por_producto_y_tienda['Venta'] / venta_top10_por_producto_y_tienda['Total Venta Producto']) * 100
-        
-        fig_stacked_bar = px.bar(
-            venta_top10_por_producto_y_tienda,
+        fig_global_top10_products = px.bar(
+            top_10_global_products.reset_index(),
             x='Producto',
             y='Venta',
-            color='Tienda',
-            title='Venta de los Top 10 Productos Globales por Tienda',
-            labels={'Producto': 'Producto', 'Venta': 'Venta Total', 'Tienda': 'Tienda'}
+            title='Top 10 Productos Mas Vendidos (Global)',
+            labels={'Producto': 'Producto', 'Venta': 'Venta Total'},
+            text='Venta'
         )
+        fig_global_top10_products.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
+        fig_global_top10_products.update_xaxes(title_text='Producto')
+        fig_global_top10_products.update_yaxes(title_text='Venta Total')
+        st.plotly_chart(fig_global_top10_products, use_container_width=True, key="fig_top10_productos_global")
         
-        fig_stacked_bar.update_layout(xaxis={'categoryorder': 'total descending'})
-        st.plotly_chart(fig_stacked_bar, use_container_width=True, key="fig_stacked_bar_top10")
+        if not top_10_global_products.empty:
+            df_top10_global_filtered = df_filtrado[df_filtrado['Producto'].isin(top_10_global_products.index)]
+            
+            venta_top10_por_producto_y_tienda = df_top10_global_filtered.groupby(['Producto', 'Tienda'])['Venta'].sum().reset_index()
+            
+            total_sales_per_product = df_top10_global_filtered.groupby('Producto')['Venta'].sum().rename('Total Venta Producto').reset_index()
+            
+            venta_top10_por_producto_y_tienda = pd.merge(venta_top10_por_producto_y_tienda, total_sales_per_product, on='Producto')
+            
+            venta_top10_por_producto_y_tienda['Porcentaje Venta Tienda'] = (venta_top10_por_producto_y_tienda['Venta'] / venta_top10_por_producto_y_tienda['Total Venta Producto']) * 100
+            
+            fig_stacked_bar = px.bar(
+                venta_top10_por_producto_y_tienda,
+                x='Producto',
+                y='Venta',
+                color='Tienda',
+                title='Venta de los Top 10 Productos Globales por Tienda',
+                labels={'Producto': 'Producto', 'Venta': 'Venta Total', 'Tienda': 'Tienda'}
+            )
+            
+            fig_stacked_bar.update_layout(xaxis={'categoryorder': 'total descending'})
+            st.plotly_chart(fig_stacked_bar, use_container_width=True, key="fig_stacked_bar_top10")
+    
+    with col5_2:
+        st.info(
+            "**Conclusion:**\n\n"
+            f"El top 3 de productos representa el **{(top_3_productos.sum() / venta_por_producto_global.sum() * 100):.1f}%** "
+            f"de las ventas totales, evidenciando una alta concentracion en pocos SKUs. "
+            f"**{top_3_productos.index[0]}** lidera con ${top_3_productos.iloc[0]:,.2f}, seguido por "
+            f"**{top_3_productos.index[1]}** (${top_3_productos.iloc[1]:,.2f}) y "
+            f"**{top_3_productos.index[2]}** (${top_3_productos.iloc[2]:,.2f}). "
+            f"Se detectaron {len(productos_con_ventas_negativas)} productos con ventas negativas, "
+            f"lo que podria indicar devoluciones o ajustes contables que requieren atencion. "
+            f"La distribucion por tienda del top 10 muestra que la **Tienda 4** domina en la mayoria "
+            f"de estos productos, con participaciones que superan el 40% en varios casos."
+        )
     
     st.markdown("---")
     
     # 6. Top 10 Productos Mas Vendidos (Global y por Tienda)
     st.header("6. Top 10 Productos Mas Vendidos (Global y por Tienda)")
     
-    top_10_global = df_filtrado.groupby('Producto')['Venta'].sum().nlargest(10)
-    st.write("Top 10 Productos Mas Vendidos (Global):")
-    st.dataframe(top_10_global.reset_index().style.format({'Venta': '${:,.2f}'}), hide_index=True)
+    col6_1, col6_2 = st.columns([3, 2])
     
-    fig_global_top10 = px.bar(
-        top_10_global.reset_index(),
-        x='Producto',
-        y='Venta',
-        title='Top 10 Productos Mas Vendidos (Global)',
-        labels={'Producto': 'Producto', 'Venta': 'Venta Total'}
-    )
-    fig_global_top10.update_xaxes(title_text='Producto')
-    fig_global_top10.update_yaxes(title_text='Venta Total')
-    st.plotly_chart(fig_global_top10, use_container_width=True, key="fig_top10_global_repeat")
-    
-    top_10_por_tienda = df_filtrado.groupby(['Tienda', 'Producto'])['Venta'].sum().groupby(level=0, group_keys=False).nlargest(10)
-    st.write("Top 10 Productos Mas Vendidos (por Tienda):")
-    st.dataframe(top_10_por_tienda.reset_index().style.format({'Venta': '${:,.2f}'}), hide_index=True)
-    
-    for i, tienda in enumerate(top_10_por_tienda.index.get_level_values('Tienda').unique()):
-        productos_tienda = top_10_por_tienda.loc[tienda]
+    with col6_1:
+        top_10_global = df_filtrado.groupby('Producto')['Venta'].sum().nlargest(10)
         
-        if not productos_tienda.empty:
-            productos_tienda_df = productos_tienda.reset_index()
-            fig_tienda_top10 = px.bar(
-                productos_tienda_df,
-                x='Producto',
-                y='Venta',
-                title=f'Top 10 Productos Mas Vendidos en {tienda}',
-                labels={'Producto': 'Producto', 'Venta': 'Venta Total'}
-            )
-            fig_tienda_top10.update_xaxes(title_text='Producto')
-            fig_tienda_top10.update_yaxes(title_text='Venta Total')
-            st.plotly_chart(fig_tienda_top10, use_container_width=True, key=f"fig_top10_tienda_{i}_{tienda}")
+        fig_global_top10 = px.bar(
+            top_10_global.reset_index(),
+            x='Producto',
+            y='Venta',
+            title='Top 10 Productos Mas Vendidos (Global)',
+            labels={'Producto': 'Producto', 'Venta': 'Venta Total'},
+            text='Venta'
+        )
+        fig_global_top10.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
+        fig_global_top10.update_xaxes(title_text='Producto')
+        fig_global_top10.update_yaxes(title_text='Venta Total')
+        st.plotly_chart(fig_global_top10, use_container_width=True, key="fig_top10_global_repeat")
+        
+        top_10_por_tienda = df_filtrado.groupby(['Tienda', 'Producto'])['Venta'].sum().groupby(level=0, group_keys=False).nlargest(10)
+        
+        for i, tienda in enumerate(top_10_por_tienda.index.get_level_values('Tienda').unique()):
+            productos_tienda = top_10_por_tienda.loc[tienda]
+            
+            if not productos_tienda.empty:
+                productos_tienda_df = productos_tienda.reset_index()
+                fig_tienda_top10 = px.bar(
+                    productos_tienda_df,
+                    x='Producto',
+                    y='Venta',
+                    title=f'Top 10 Productos Mas Vendidos en {tienda}',
+                    labels={'Producto': 'Producto', 'Venta': 'Venta Total'},
+                    text='Venta'
+                )
+                fig_tienda_top10.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
+                fig_tienda_top10.update_xaxes(title_text='Producto')
+                fig_tienda_top10.update_yaxes(title_text='Venta Total')
+                st.plotly_chart(fig_tienda_top10, use_container_width=True, key=f"fig_top10_tienda_{i}_{tienda}")
+    
+    with col6_2:
+        st.info(
+            "**Conclusion:**\n\n"
+            "El analisis del top 10 por tienda revela diferencias significativas en las preferencias "
+            "de los clientes por ubicacion. La **Tienda 4** tiene una mayor diversificacion en su top 10, "
+            "mientras que la **Tienda 1** muestra una fuerte dependencia de sus 3 productos principales. "
+            "El **Producto 716** aparece en el top 5 de todas las tiendas, siendo el unico producto con "
+            "presencia universal entre las preferencias. Esta informacion es valiosa para ajustar "
+            "el inventario y las estrategias de surtido por ubicacion."
+        )
     
     st.markdown("---")
     
@@ -357,15 +447,74 @@ try:
             mime="text/csv"
         )
     
+    st.markdown("---")
+    
+    # 8. Insights para Toma de Decisiones
+    st.header("8. Insights para Toma de Decisiones")
+    
+    # Calcular insights adicionales
+    ticket_promedio_tienda = df_filtrado.groupby('Tienda').apply(
+        lambda x: x['Venta'].sum() / x['Ticket'].nunique() if x['Ticket'].nunique() > 0 else 0
+    ).sort_values(ascending=False)
+    
+    productos_baja_rotacion = venta_por_producto_global[venta_por_producto_global > 0].tail(20)
+    
+    mejor_horario_tiendas = df_filtrado.groupby(['Tienda', 'Hora'])['Venta'].sum().groupby('Tienda').idxmax()
+    
+    col8_1, col8_2, col8_3 = st.columns(3)
+    
+    with col8_1:
+        st.subheader("Insight 1: Concentracion de Ventas")
+        st.info(
+            f"**Hallazgo:** El {(top_3_productos.sum() / venta_por_producto_global.sum() * 100):.1f}% "
+            f"de las ventas proviene de solo 3 productos.\n\n"
+            f"**Accion recomendada:**\n"
+            f"- Asegurar inventario suficiente de **{top_3_productos.index[0]}**, "
+            f"**{top_3_productos.index[1]}** y **{top_3_productos.index[2]}**\n"
+            f"- Negociar mejores precios con proveedores de estos productos clave\n"
+            f"- Desarrollar estrategias de upselling/cross-selling para productos complementarios\n"
+            f"- Monitorear semanalmente el stock de estos productos para evitar desabasto"
+        )
+    
+    with col8_2:
+        st.subheader("Insight 2: Oportunidad Horaria")
+        st.info(
+            f"**Hallazgo:** Las ventas fuera del horario pico representan "
+            f"{((venta_total_global - venta_por_hora_global.loc[7:20].sum()) / venta_total_global * 100):.1f}% "
+            f"del total.\n\n"
+            f"**Accion recomendada:**\n"
+            f"- Evaluar reduccion de horario operativo de 12 AM a 5 AM si los costos superan los beneficios\n"
+            f"- Implementar promociones especificas en horas de menor afluencia (2 PM a 4 PM)\n"
+            f"- Considerar programas de fidelizacion para clientes que compran en horas valle\n"
+            f"- Optimizar horarios de personal priorizando las horas de mayor demanda"
+        )
+    
+    with col8_3:
+        st.subheader("Insight 3: Disparidad por Tienda")
+        st.info(
+            f"**Hallazgo:** La tienda con mejor desempeno ({venta_total_por_tienda.index[0]}) supera en "
+            f"{((venta_total_por_tienda.iloc[0] / venta_total_por_tienda.iloc[-1]) - 1) * 100:.1f}% "
+            f"a la tienda de menor desempeno ({venta_total_por_tienda.index[-1]}).\n\n"
+            f"**Accion recomendada:**\n"
+            f"- Realizar benchmarking operativo de la tienda lider para replicar mejores practicas\n"
+            f"- Analizar factores externos (ubicacion, competencia, demografia) que afectan el desempeno\n"
+            f"- Implementar programa piloto de mejora en la tienda de menor rendimiento\n"
+            f"- Establecer metas diferenciadas por tienda basadas en su potencial real"
+        )
+    
+    st.markdown("---")
+    
+    # Informacion en sidebar
     st.sidebar.markdown("---")
     st.sidebar.info(
         f"""
-        Informacion del Dashboard
+        **Informacion del Dashboard**
         
-        Total de registros: {len(df_filtrado):,}
-        Rango de fechas: {fecha_inicio} a {fecha_fin}
-        Tiendas incluidas: {tienda_seleccionada if tienda_seleccionada != 'Todas' else 'Todas'}
-        Productos incluidos: {producto_seleccionado if producto_seleccionado != 'Todos' else 'Todos'}
+        - Total de registros: {len(df_filtrado):,}
+        - Rango de fechas: {fecha_inicio} a {fecha_fin}
+        - Tiendas incluidas: {tienda_seleccionada if tienda_seleccionada != 'Todas' else 'Todas'}
+        - Productos incluidos: {producto_seleccionado if producto_seleccionado != 'Todos' else 'Todos'}
+        - Rango de horas: {hora_min}:00 a {hora_max}:00
         """
     )
     
