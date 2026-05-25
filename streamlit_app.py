@@ -303,7 +303,7 @@ try:
     
     st.markdown("---")
     
-    # 5. Venta por Producto (Global y por Tienda)
+        # 5. Venta por Producto (Global y por Tienda)
     st.header("5. Venta por Producto (Global y por Tienda)")
     
     venta_por_producto_global = df_filtrado.groupby('Producto')['Venta'].sum().sort_values(ascending=False)
@@ -339,17 +339,60 @@ try:
             
             venta_top10_por_producto_y_tienda['Porcentaje Venta Tienda'] = (venta_top10_por_producto_y_tienda['Venta'] / venta_top10_por_producto_y_tienda['Total Venta Producto']) * 100
             
+            venta_top10_por_producto_y_tienda['Porcentaje Formateado'] = venta_top10_por_producto_y_tienda['Porcentaje Venta Tienda'].apply(lambda x: f'{x:.1f}%')
+            
             fig_stacked_bar = px.bar(
                 venta_top10_por_producto_y_tienda,
                 x='Producto',
                 y='Venta',
                 color='Tienda',
                 title='Venta de los Top 10 Productos Globales por Tienda',
-                labels={'Producto': 'Producto', 'Venta': 'Venta Total', 'Tienda': 'Tienda'}
+                labels={'Producto': 'Producto', 'Venta': 'Venta Total', 'Tienda': 'Tienda'},
+                text='Venta'
             )
             
-            fig_stacked_bar.update_layout(xaxis={'categoryorder': 'total descending'})
+            fig_stacked_bar.update_traces(
+                texttemplate='$%{text:,.0f}',
+                textposition='inside',
+                hovertemplate='<b>Producto:</b> %{customdata[0]}<br>' +
+                              '<b>Tienda:</b> %{customdata[1]}<br>' +
+                              '<b>Venta:</b> $%{customdata[2]:,.2f}<br>' +
+                              '<b>Contribucion:</b> %{customdata[3]:.1f}%<br>' +
+                              '<extra></extra>'
+            )
+            
+            custom_data_stack = venta_top10_por_producto_y_tienda[['Producto', 'Tienda', 'Venta', 'Porcentaje Venta Tienda']].values
+            fig_stacked_bar.update_traces(customdata=custom_data_stack)
+            
+            fig_stacked_bar.update_layout(
+                xaxis={'categoryorder': 'total descending'},
+                barmode='stack'
+            )
             st.plotly_chart(fig_stacked_bar, use_container_width=True, key="fig_stacked_bar_top10")
+            
+            st.write("**Desglose de Ventas por Producto y Tienda (Top 10 Global):**")
+            tabla_desglose = venta_top10_por_producto_y_tienda.pivot_table(
+                index='Producto',
+                columns='Tienda',
+                values='Venta',
+                fill_value=0
+            )
+            
+            tabla_porcentaje = venta_top10_por_producto_y_tienda.pivot_table(
+                index='Producto',
+                columns='Tienda',
+                values='Porcentaje Venta Tienda',
+                fill_value=0
+            )
+            
+            for col in tabla_porcentaje.columns:
+                tabla_porcentaje[col] = tabla_porcentaje[col].apply(lambda x: f'{x:.1f}%')
+            
+            st.dataframe(tabla_desglose.style.format('${:,.2f}'), use_container_width=True)
+            st.caption("Tabla de Ventas por Producto y Tienda")
+            
+            st.dataframe(tabla_porcentaje, use_container_width=True)
+            st.caption("Tabla de Porcentaje de Contribucion por Tienda")
     
     with col5_2:
         st.info(
@@ -364,8 +407,6 @@ try:
             f"La distribucion por tienda del top 10 muestra que la **Tienda 4** domina en la mayoria "
             f"de estos productos, con participaciones que superan el 40% en varios casos."
         )
-    
-    st.markdown("---")
     
     # 6. Top 10 Productos Mas Vendidos (Global y por Tienda)
     st.header("6. Top 10 Productos Mas Vendidos (Global y por Tienda)")
