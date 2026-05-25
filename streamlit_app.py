@@ -490,8 +490,228 @@ try:
     
     st.markdown("---")
     
-    # 8. Insights para Toma de Decisiones
-    st.header("8. Insights para Toma de Decisiones")
+    
+    # 8. Analisis Pareto (Regla 80/20)
+    st.header("8. Analisis Pareto (Regla 80/20)")
+    
+    st.markdown("""
+    El analisis Pareto permite identificar los productos que generan el mayor impacto en las ventas.
+    La regla 80/20 sugiere que aproximadamente el 20% de los productos generan el 80% de las ventas.
+    """)
+    
+    # Calcular Pareto
+    venta_por_producto_pareto = df_filtrado.groupby('Producto')['Venta'].sum().sort_values(ascending=False)
+    venta_acumulada = venta_por_producto_pareto.cumsum()
+    venta_total_pareto = venta_acumulada.iloc[-1]
+    porcentaje_acumulado = (venta_acumulada / venta_total_pareto) * 100
+    
+    pareto_df = pd.DataFrame({
+        'Producto': venta_por_producto_pareto.index,
+        'Venta': venta_por_producto_pareto.values,
+        'Venta Acumulada': venta_acumulada.values,
+        'Porcentaje Acumulado': porcentaje_acumulado.values
+    })
+    
+    pareto_df['Numero Producto'] = range(1, len(pareto_df) + 1)
+    pareto_df['Porcentaje Productos'] = (pareto_df['Numero Producto'] / len(pareto_df)) * 100
+    
+    # Encontrar el punto donde se alcanza el 80% de ventas
+    punto_80 = pareto_df[pareto_df['Porcentaje Acumulado'] >= 80].iloc[0]
+    productos_80 = punto_80['Numero Producto']
+    porcentaje_productos_80 = punto_80['Porcentaje Productos']
+    venta_80 = punto_80['Venta Acumulada']
+    
+    # Encontrar el punto donde se alcanza el 20% de productos
+    pareto_df['Porcentaje Productos Redondeado'] = pareto_df['Porcentaje Productos'].round(1)
+    punto_20_productos = pareto_df[pareto_df['Porcentaje Productos'] >= 20].iloc[0]
+    venta_en_20 = punto_20_productos['Porcentaje Acumulado']
+    
+    col8_1, col8_2, col8_3 = st.columns(3)
+    
+    with col8_1:
+        st.metric(
+            "Productos que generan 80% de ventas",
+            f"{productos_80} productos",
+            f"{porcentaje_productos_80:.1f}% del total"
+        )
+    
+    with col8_2:
+        st.metric(
+            "Ventas generadas por 20% de productos",
+            f"{venta_en_20:.1f}%",
+            delta="vs 80% esperado"
+        )
+    
+    with col8_3:
+        productos_top20 = int(len(venta_por_producto_pareto) * 0.2)
+        ventas_top20 = venta_por_producto_pareto.head(productos_top20).sum()
+        porcentaje_top20 = (ventas_top20 / venta_total_pareto) * 100
+        st.metric(
+            "Ventas del top 20% de productos",
+            f"{porcentaje_top20:.1f}%",
+            delta=f"{porcentaje_top20 - 80:.1f}% vs regla 80/20"
+        )
+    
+    st.markdown("---")
+    
+    # Grafico de Pareto
+    col8_4, col8_5 = st.columns([3, 2])
+    
+    with col8_4:
+        fig_pareto = go.Figure()
+        
+        fig_pareto.add_trace(go.Bar(
+            x=pareto_df['Numero Producto'].head(30),
+            y=pareto_df['Venta'].head(30),
+            name='Venta por Producto',
+            marker_color='steelblue',
+            text=pareto_df['Venta'].head(30).apply(lambda x: f'${x:,.0f}'),
+            textposition='outside',
+            hovertemplate='Producto #%{x}<br>Venta: $%{y:,.2f}<extra></extra>'
+        ))
+        
+        fig_pareto.add_trace(go.Scatter(
+            x=pareto_df['Numero Producto'],
+            y=pareto_df['Porcentaje Acumulado'],
+            name='Porcentaje Acumulado',
+            marker_color='red',
+            mode='lines+markers',
+            yaxis='y2',
+            line=dict(width=2, dash='dash'),
+            hovertemplate='Producto #%{x}<br>Acumulado: %{y:.1f}%<extra></extra>'
+        ))
+        
+        fig_pareto.add_hline(
+            y=80, 
+            line_dash="dash", 
+            line_color="green",
+            annotation_text="80%",
+            annotation_position="top right"
+        )
+        
+        fig_pareto.add_vline(
+            x=productos_80,
+            line_dash="dash",
+            line_color="orange",
+            annotation_text=f"{productos_80} productos",
+            annotation_position="top"
+        )
+        
+        fig_pareto.update_layout(
+            title='Analisis Pareto: Contribucion Acumulada de Ventas por Producto',
+            xaxis_title='Numero de Productos (ordenados por venta descendente)',
+            yaxis_title='Venta por Producto',
+            yaxis2=dict(
+                title='Porcentaje Acumulado de Ventas (%)',
+                overlaying='y',
+                side='right',
+                range=[0, 100]
+            ),
+            legend=dict(x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.8)'),
+            height=500
+        )
+        
+        st.plotly_chart(fig_pareto, use_container_width=True, key="fig_pareto")
+        
+        # Grafico de torta para el top 20%
+        col_pie1, col_pie2 = st.columns(2)
+        
+        with col_pie1:
+            top20_productos = venta_por_producto_pareto.head(productos_top20)
+            resto_productos = venta_por_producto_pareto.iloc[productos_top20:]
+            
+            pie_data = pd.DataFrame({
+                'Categoria': ['Top 20% Productos', 'Resto 80% Productos'],
+                'Venta': [top20_productos.sum(), resto_productos.sum()]
+            })
+            
+            fig_pie = px.pie(
+                pie_data,
+                values='Venta',
+                names='Categoria',
+                title=f'Top 20% de Productos ({productos_top20} productos) vs Resto',
+                color_discrete_sequence=['#2E86AB', '#A23B72'],
+                hole=0.4
+            )
+            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig_pie, use_container_width=True, key="fig_pie_top20")
+        
+        with col_pie2:
+            categorias_pareto = pd.DataFrame({
+                'Categoria': ['Top Productos (hasta 80%)', 'Resto Productos'],
+                'Venta': [venta_80, venta_total_pareto - venta_80]
+            })
+            
+            fig_pie_80 = px.pie(
+                categorias_pareto,
+                values='Venta',
+                names='Categoria',
+                title=f'Distribucion al Alcanzar 80% de Ventas ({productos_80} productos)',
+                color_discrete_sequence=['#06A77D', '#D62828'],
+                hole=0.4
+            )
+            fig_pie_80.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig_pie_80, use_container_width=True, key="fig_pie_80")
+    
+    with col8_5:
+        st.info(
+            "**Conclusion del Analisis Pareto:**\n\n"
+            f"El analisis revela que **{productos_80} productos** ({porcentaje_productos_80:.1f}% del total) "
+            f"generan el 80% de las ventas, lo que representa una concentracion "
+            f"{'mayor' if productos_80 / len(venta_por_producto_pareto) * 100 < 20 else 'menor'} a la esperada "
+            f"por la regla 80/20 clasica.\n\n"
+            f"**Hallazgos clave:**\n"
+            f"- El top 20% de productos genera el **{porcentaje_top20:.1f}%** de las ventas\n"
+            f"- El producto mas vendido aporta **{(venta_por_producto_pareto.iloc[0] / venta_total_pareto * 100):.1f}%** del total\n"
+            f"- Los ultimos {min(50, len(venta_por_producto_pareto))} productos representan solo "
+            f"**{(venta_por_producto_pareto.tail(50).sum() / venta_total_pareto * 100):.2f}%** de las ventas\n\n"
+            f"**Implicaciones estrategicas:**\n"
+            f"- Enfocar esfuerzos de marketing e inventario en los {productos_80} productos clave\n"
+            f"- Evaluar la rentabilidad de mantener productos de muy baja rotacion\n"
+            f"- Considerar estrategias de descontinuacion o liquidacion para productos cola"
+        )
+    
+    # Tabla de top productos Pareto
+    st.markdown("---")
+    st.subheader("Top 20 Productos por Volumen de Ventas")
+    
+    top20_pareto = pareto_df.head(20).copy()
+    top20_pareto['% del Total'] = (top20_pareto['Venta'] / venta_total_pareto * 100).apply(lambda x: f'{x:.2f}%')
+    top20_pareto['% Acumulado'] = top20_pareto['Porcentaje Acumulado'].apply(lambda x: f'{x:.2f}%')
+    top20_pareto['Venta'] = top20_pareto['Venta'].apply(lambda x: f'${x:,.2f}')
+    top20_pareto['Venta Acumulada'] = top20_pareto['Venta Acumulada'].apply(lambda x: f'${x:,.2f}')
+    
+    st.dataframe(
+        top20_pareto[['Numero Producto', 'Producto', 'Venta', '% del Total', 'Venta Acumulada', '% Acumulado']],
+        use_container_width=True,
+        hide_index=True
+    )
+    
+    st.caption("Tabla de Pareto: Productos ordenados de mayor a menor contribucion a ventas")
+    
+    # Recomendaciones basadas en Pareto
+    st.markdown("---")
+    st.subheader("Recomendaciones basadas en Analisis Pareto")
+    
+    col_rec1, col_rec2 = st.columns(2)
+    
+    with col_rec1:
+        st.write("**Productos Clase A (Mayor contribucion):**")
+        st.write(f"- Enfocar recursos de marketing en estos {min(10, productos_80)} productos")
+        st.write("- Mantener inventario de seguridad mas alto")
+        st.write("- Negociar mejores precios por volumen con proveedores")
+        st.write("- Priorizar su visibilidad en tienda")
+    
+    with col_rec2:
+        st.write("**Productos Clase C (Menor contribucion):**")
+        st.write("- Evaluar costo de oportunidad de mantener inventario")
+        st.write("- Considerar promociones para liquidar existencias")
+        st.write("- Analizar posibilidad de discontinuacion")
+        st.write("- Reducir espacio en anaquel asignado")
+    
+    
+    # 9. Insights para Toma de Decisiones
+    st.header("9. Insights para Toma de Decisiones")
     
     # Calcular insights adicionales
     ticket_promedio_tienda = df_filtrado.groupby('Tienda').apply(
